@@ -1,0 +1,117 @@
+﻿<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Restaurant AI — Voice Agent</title>
+  <meta name="description"
+    content="Voice-first web UI for Restaurant AI Voice Agent — hold to speak, transcript, quick actions, menu sending" />
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <header class="header">
+    <div class="brand">
+      <div class="logo"><img id="logo-img" src="media/logo.png"></img></div>
+      <div class="brand-title">
+        <h1>Welcome to Aarush AI Solutions</h1>
+        <h1>We build custom AI agents for businesses.</h1>
+        <p>AI Voice Assistant</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center">
+      <button title="Help"
+        style="background:transparent;border:none;color:var(--color-text-muted);cursor:pointer">❔</button>
+      <button title="Menu"
+        style="background:transparent;border:none;color:var(--color-text-muted);cursor:pointer">☰</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <main>
+      <section class="voice-card" id="voiceCard">
+        <div class="mic-container mic-state-idle" id="micArea">
+          <button id="micButton" class="mic-button" aria-label="Hold to Speak">
+            <span class="mic-icon">🎤</span>
+          </button>
+          <div class="waveform" id="waveform" aria-hidden="true">
+            <div class="wavebar"></div>
+            <div class="wavebar"></div>
+            <div class="wavebar"></div>
+            <div class="wavebar"></div>
+            <div class="wavebar"></div>
+          </div>
+          <p class="mic-label" id="micLabel">Hold to Speak</p>
+        </div>
+
+        <div class="transcript" id="transcript"></div>
+
+        <div class="text-input-container">
+          <input type="text" class="text-input" id="textInput" placeholder="Type your message here..."
+            autocomplete="off" />
+          <button class="send-button" id="sendButton">Send</button>
+        </div>
+
+        <div class="actions">
+          <button class="restart" id="restartBtn">↻ Restart Conversation</button>
+          <div class="privacy">🔒 <span style="font-weight:600;color:var(--success);margin-left:6px">Your audio is never
+              stored</span></div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="sidebar">
+      <h3>What I Can Do</h3>
+      <div class="capability">
+        <div class="icon">🤝</div><span>Book a call with me</span>
+      </div>
+      <div class="capability">
+        <div class="icon">🤖</div><span>Book your custom AI agent</span>
+      </div>
+      <div class="capability">
+        <div class="icon">📄</div><span>View price catalog</span>
+      </div>
+      <div class="capability">
+        <div class="icon">📍</div><span>Get my office's location</span>
+      </div>
+      <div class="capability">
+        <div class="icon">💳</div><span> Pay online (UPI)</span>
+      </div>
+      <div class="capability">
+        <div class="icon">❓</div><span>Answer queries reguarding our Ai agency</span>
+      </div>
+
+      <div class="quick-actions-section">
+        <p class="quick-actions-label">Click these for quick actions</p>
+        <div class="chips" id="chips">
+          <div class="chip" data-value="Book a call">Book a call</div>
+          <div class="chip" data-value="Book a Ai agent">Book your agent</div>
+          <div class="chip" data-value="Show price catalog">See pricing</div>
+          <div class="chip" data-value="Send office location">Get location</div>
+        </div>
+      </div>
+      <div class="sidebar-logo">
+        <img src="media/logo.png" class="sidebar-logo-img">
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    <div style="max-width:var(--max-width);margin:0 auto;text-align:center">
+      <div style="font-weight:600;font-size:18px">Built by Aarush Verma</div>
+      <div style="opacity:0.8;margin-top:6px"></div>
+      <div class="links" style="margin-top:12px">
+        <a href="#" style="color:rgba(255,255,255,0.8);text-decoration:none;margin:0 12px">GitHub</a>
+        <p style="color:rgba(255,255,255,0.8);text-decoration:none;margin:0 12px">Contact me: +919728108899</p>
+        <a href="mailto:techaarverma@gmail.com"
+          style="color:rgba(255,255,255,0.8);text-decoration:none;margin:0 12px">Email</a>
+      </div>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast">Test</div>
+  <script src="script.js"></script>
+</body>
+
+</html>
