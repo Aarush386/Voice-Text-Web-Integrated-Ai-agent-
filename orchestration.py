@@ -1,5 +1,4 @@
-﻿# ============================================================
-import os, time, json, uuid, re, subprocess, tempfile
+﻿import os, time, json, uuid, re, subprocess, tempfile
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
@@ -15,8 +14,9 @@ from tools.send_whatsapp_text import send_whatsapp_text
 from tools.send_owner_msg import notify_owner
 from tools.missingInfoTool import request_missing_info
 from tools.ensure_utils import ensure_phone_present, normalize_phone_full
-import whisper
-WHISPER_MODEL = whisper.load_model("base")  # lightweight, fast
+import speech_recognition as sr
+from pydub import AudioSegment
+
 try:
     from google import generativeai as gen
     MODEL_NAME = os.getenv("GEN_MODEL", "gemini-2.5-flash-lite")
@@ -26,9 +26,11 @@ except:
     gen = None
     MODEL_NAME = None
     LLM_AVAILABLE = False
+
 init_db()
 LLM_PER_MIN = int(os.getenv("LLM_PER_MINUTE", "15"))
 LLM_CALLS = []
+
 def can_call_llm() -> bool:
     now = time.time()
     window = [t for t in LLM_CALLS if now - t < 60]
@@ -37,6 +39,7 @@ def can_call_llm() -> bool:
     window.append(now)
     LLM_CALLS[:] = window
     return True
+
 def safe_json_parse(text: str) -> Optional[Dict[str, Any]]:
     try:
         start = text.find("{")
@@ -47,11 +50,13 @@ def safe_json_parse(text: str) -> Optional[Dict[str, Any]]:
         return json.loads(chunk)
     except:
         return None
+
 ALLOWED_INTENTS = {
     "book_agent", "book_call", "cancel",
     "get_catalog", "get_location", "pay",
     "confirm", "small_talk", "unknown"
 }
+
 def llm_interpret(text: str, snapshot: Dict[str, Any]):
     fallback = detect_intent_cached(text, allow_llm=False)
     if not LLM_AVAILABLE or not can_call_llm():
@@ -87,6 +92,7 @@ def llm_interpret(text: str, snapshot: Dict[str, Any]):
         return parsed
     except:
         return fallback
+
 def llm_rewrite(core: str, user_text: str, style_hints: dict, snapshot: dict) -> str:
     if not LLM_AVAILABLE or not can_call_llm():
         return core
@@ -110,7 +116,9 @@ def llm_rewrite(core: str, user_text: str, style_hints: dict, snapshot: dict) ->
         return out.strip()
     except:
         return core
+
 SESSIONS: Dict[str, Dict[str, Any]] = {}
+
 def start_session(sid: str, frontend_phone: Optional[str]):
     s = SESSIONS.get(sid)
     if not s:
@@ -123,6 +131,7 @@ def start_session(sid: str, frontend_phone: Optional[str]):
         if parsed.get("phone") and not s["slots"].get("phone"):
             s["slots"]["phone"] = parsed["phone"]
     return s
+
 def small_talk(user: str, session):
     u = user.lower()
     if any(x in u for x in ["hi", "hello", "hey"]):
@@ -132,23 +141,32 @@ def small_talk(user: str, session):
     if any(x in u for x in ["wait", "hold on", "one sec", "bro", "hmm"]):
         return "Sure, take your time — I’m here."
     return None
+
 FX = float(os.getenv("FX_USD_TO_INR","80"))
 CURRENCY = "₹"
+
 PRICES_USD = {
     "gym": 200, "salon":180, "restaurant":250, "other":180
 }
+
 ADDON_USD = {
     "web_integration":100,
     "payment_integration":100,
     "whatsapp_integration":50
 }
-def to_inr(usd): return usd * FX
-def round_500(x): return int(round(x/500)*500)
+
+def to_inr(usd): 
+    return usd * FX
+
+def round_500(x): 
+    return int(round(x/500)*500)
+
 def price_calc(genre, addons):
     base = PRICES_USD.get(genre,180)
     add = sum(ADDON_USD.get(a,0) for a in (addons or []))
     total = to_inr(base + add)
     return round_500(total)
+
 REQ_ORDER = [
     ("mode", "Would you like to book a call or book an AI agent?"),
     ("name", "Please provide your full name."),
@@ -158,48 +176,44 @@ REQ_ORDER = [
     ("time", "What time works for you?"),
     ("genre", "Which agent type (gym/salon/restaurant/other)?")
 ]
+
 def next_missing(slots):
     for k,_ in REQ_ORDER:
         if not slots.get(k):
             return k
     return None
+
 def question_for(k):
     for kk, q in REQ_ORDER:
         if kk == k:
             return q
     return f"Please provide {k}."
+
 def transcribe_audio(webm_path):
-    """Convert webm → wav → Whisper STT."""
     wav_path = webm_path.replace(".webm", ".wav")
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", webm_path,
-        "-ar", "16000",
-        "-ac", "1",
-        wav_path
-    ]
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    result = WHISPER_MODEL.transcribe(wav_path, fp16=False)
-    text = result.get("text","").strip()
+    try:
+        AudioSegment.from_file(webm_path).export(wav_path, format="wav")
+    except:
+        return ""
+    try:
+        r = sr.Recognizer()
+        with sr.AudioFile(wav_path) as source:
+            audio = r.record(source)
+        text = r.recognize_google(audio)
+    except:
+        text = ""
     try:
         os.remove(wav_path)
     except:
         pass
-    return text
+    return text.strip()
+
 def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
-    """
-    ALWAYS returns:
-    {
-      "reply_text": str,
-      "transcript": str|None,
-      "reply_audio_url": None,
-      "structured": dict
-    }
-    """
     sess = start_session(sid, frontend_phone)
+    transcript = None
     if audio_path:
         transcript = transcribe_audio(audio_path)
-        user_text = transcript.strip() if transcript else "[voice]"
+        user_text = transcript if transcript else "[voice]"
     else:
         user_text = ""
         for m in reversed(msgs):
@@ -229,7 +243,7 @@ def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
         if sm:
             return {
                 "reply_text": sm,
-                "transcript": transcript if audio_path else None,
+                "transcript": transcript,
                 "reply_audio_url": None,
                 "structured": {}
             }
@@ -249,7 +263,7 @@ def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
             sess["slots"]["asked_confirm"]=True
             return {
                 "reply_text": out,
-                "transcript": transcript if audio_path else None,
+                "transcript": transcript,
                 "reply_audio_url": None,
                 "structured": {}
             }
@@ -257,9 +271,9 @@ def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
             if user_text.lower() in ("yes","y","yeah","confirm"):
                 sess["slots"]["confirmed_phone"]=True
                 sess["slots"].pop("asked_confirm",None)
-                core = "Great — what’s your full name?"
+                core = "Great — what's your full name?"
                 out = llm_rewrite(core, user_text, hints, snapshot)
-                return {"reply_text": out, "transcript": transcript if audio_path else None, "reply_audio_url":None, "structured":{}}
+                return {"reply_text": out, "transcript": transcript, "reply_audio_url":None, "structured":{}}
             mcc = re.search(r"(\+\d{1,3})", user_text)
             mph = re.search(r"(\d{6,15})", user_text.replace(" ",""))
             if mcc and mph:
@@ -267,16 +281,16 @@ def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
                 sess["slots"]["phone"]=mph.group(1)
                 sess["slots"]["confirmed_phone"]=True
                 sess["slots"].pop("asked_confirm",None)
-                core = "Thanks, updated your number. What’s your full name?"
+                core = "Thanks, updated your number. What's your full name?"
                 out=llm_rewrite(core,user_text,hints,snapshot)
-                return {"reply_text": out, "transcript": transcript if audio_path else None, "reply_audio_url":None, "structured":{}}
+                return {"reply_text": out, "transcript": transcript, "reply_audio_url":None, "structured":{}}
         miss = next_missing(sess["slots"])
         if miss:
             q = question_for(miss)
             out = llm_rewrite(q, user_text, hints, snapshot)
             return {
                 "reply_text": out,
-                "transcript": transcript if audio_path else None,
+                "transcript": transcript,
                 "reply_audio_url":None,
                 "structured": {}
             }
@@ -287,7 +301,7 @@ def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
             sess["slots"].pop("time",None)
             core = valid["summary"]
             out = llm_rewrite(core, user_text, hints, snapshot)
-            return {"reply_text":out,"transcript":transcript if audio_path else None,"reply_audio_url":None,"structured":{}}
+            return {"reply_text":out,"transcript":transcript,"reply_audio_url":None,"structured":{}}
         genre = sess["slots"].get("genre","other")
         addons = sess["slots"].get("addons",[])
         amount = price_calc(genre,addons)
@@ -310,7 +324,7 @@ def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
         out = llm_rewrite(core, user_text, hints, snapshot)
         return {
             "reply_text": out,
-            "transcript": transcript if audio_path else None,
+            "transcript": transcript,
             "reply_audio_url": None,
             "structured": {"proposal": prop}
         }
@@ -319,7 +333,7 @@ def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
         if "change" in low:
             sess["stage"]="collect"
             return {"reply_text":"Okay — what would you like to change?",
-                    "transcript": transcript if audio_path else None,
+                    "transcript": transcript,
                     "reply_audio_url":None, "structured":{}}
         if "confirm" in low or low in ("yes","y","book"):
             p = sess["proposed"]
@@ -354,10 +368,10 @@ def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
             if sess["slots"]["mode"]=="agent":
                 core += " Would you like to pay now using UPI (QR) or pay offline?"
             out = llm_rewrite(core, user_text, hints, snapshot)
-            return {"reply_text":out,"transcript":transcript if audio_path else None,"reply_audio_url":None,"structured":{"booking_id":bid}}
+            return {"reply_text":out,"transcript":transcript,"reply_audio_url":None,"structured":{"booking_id":bid}}
         return {
             "reply_text":"Please reply 'confirm' or 'change'.",
-            "transcript": transcript if audio_path else None,
+            "transcript": transcript,
             "reply_audio_url":None,
             "structured":{}
         }
@@ -365,7 +379,7 @@ def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
     if "pay" in low or "qr" in low:
         bid = sess.get("last_booking")
         if not bid:
-            return {"reply_text":"No booking found.","transcript":transcript if audio_path else None,"reply_audio_url":None,"structured":{}}
+            return {"reply_text":"No booking found.","transcript":transcript,"reply_audio_url":None,"structured":{}}
         bk = get_booking_by_id(bid)
         amount = bk["booking"]["final_amount"]
         full_phone = sess["slots"]["country_code"] + sess["slots"]["phone"]
@@ -373,7 +387,7 @@ def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
         url = qr.get("public_url")
         send_whatsapp_text(to=full_phone, body=f"Scan to pay {CURRENCY}{amount}: {url}")
         return {"reply_text":f"QR sent to your WhatsApp: {url}",
-                "transcript":transcript if audio_path else None,
+                "transcript":transcript,
                 "reply_audio_url":None,
                 "structured":{"qr_url":url}}
     if "catalog" in low or "price" in low:
@@ -381,29 +395,29 @@ def run_agent(msgs, sid, frontend_phone=None, audio_path=None):
         res = send_price_catalog(sid, full_phone)
         url = res.get("public_url")
         send_whatsapp_text(full_phone, f"Catalog: {url}")
-        return {"reply_text":f"Catalog sent to WhatsApp.","transcript":transcript if audio_path else None,"reply_audio_url":None,"structured":{"catalog_url":url}}
+        return {"reply_text":f"Catalog sent to WhatsApp.","transcript":transcript,"reply_audio_url":None,"structured":{"catalog_url":url}}
     if "location" in low or "address" in low:
         full_phone = sess["slots"]["country_code"] + sess["slots"]["phone"]
         res = send_location(sid, full_phone)
         url = res.get("public_url")
         send_whatsapp_text(full_phone, f"Our location: {url}")
-        return {"reply_text":"Location sent to WhatsApp.","transcript":transcript if audio_path else None,"reply_audio_url":None,"structured":{"location_url":url}}
+        return {"reply_text":"Location sent to WhatsApp.","transcript":transcript,"reply_audio_url":None,"structured":{"location_url":url}}
     if "cancel" in low:
         bid = sess["slots"].get("booking_id")
         if not bid:
-            return {"reply_text":"Please provide your booking ID.","transcript":transcript if audio_path else None,"reply_audio_url":None,"structured":{}}
+            return {"reply_text":"Please provide your booking ID.","transcript":transcript,"reply_audio_url":None,"structured":{}}
         cancel_booking(bid)
         sess["stage"]="idle"
-        return {"reply_text":f"Booking {bid} cancelled.","transcript":transcript if audio_path else None,"reply_audio_url":None,"structured":{"cancelled":bid}}
+        return {"reply_text":f"Booking {bid} cancelled.","transcript":transcript,"reply_audio_url":None,"structured":{"cancelled":bid}}
     info = request_missing_info(user_text, sess["slots"])
     if info.get("slots_found"):
         for k,v in info["slots_found"].items():
             sess["slots"][k] = v
-        return {"reply_text":"Got it! Anything else?","transcript":transcript if audio_path else None,
+        return {"reply_text":"Got it! Anything else?","transcript":transcript,
                 "reply_audio_url":None,"structured":{}}
     return {
         "reply_text": "I can help with bookings, pricing, location, and payments. What would you like to do?",
-        "transcript": transcript if audio_path else None,
+        "transcript": transcript,
         "reply_audio_url": None,
         "structured": {}
     }

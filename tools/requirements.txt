@@ -1,0 +1,8 @@
+flask
+flask-cors
+pydub
+SpeechRecognition
+ffmpeg-python
+python-dotenv
+Werkzeug
+google-generativeai

@@ -1,4 +1,6 @@
-﻿const micButton = document.getElementById('micButton');
+﻿const API_BASE = "http://127.0.0.1:5000";
+
+const micButton = document.getElementById('micButton');
 const micArea = document.getElementById('micArea');
 const micLabel = document.getElementById('micLabel');
 const transcript = document.getElementById('transcript');
@@ -51,6 +53,7 @@ function addMessage(text, who = 'agent', ts = null, loadingHistory = false) {
     avatar.className = 'avatar';
     el.appendChild(avatar);
   }
+
   el.appendChild(inner);
 
   const timeEl = document.createElement('div');
@@ -80,7 +83,7 @@ async function sendToBackend(msg) {
       ]
     };
 
-    const res = await fetch("http:
+    const res = await fetch(`${API_BASE}/api/text`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -88,18 +91,19 @@ async function sendToBackend(msg) {
 
     const data = await res.json();
 
-    if (data.reply) {
-      addMessage(data.reply, "agent");
+    if (data.reply_text) {
+      addMessage(data.reply_text, "agent");
 
       if (data.reply_audio_url) {
         new Audio(data.reply_audio_url).play();
       } else {
-        const speak = new SpeechSynthesisUtterance(data.reply);
+        const speak = new SpeechSynthesisUtterance(data.reply_text);
         speak.rate = 1.35;
         speechSynthesis.cancel();
         speechSynthesis.speak(speak);
       }
     }
+
   } catch (err) {
     showToast("Server error");
   }
@@ -192,7 +196,8 @@ function setMicState(s) {
   micArea.classList.add(`mic-state-${s}`);
   micLabel.textContent =
     s === 'listening' ? 'Listening...' :
-      s === 'processing' ? 'Processing...' : 'Hold to Speak';
+      s === 'processing' ? 'Processing...' :
+        'Hold to Speak';
 }
 
 async function sendAudioToServer(blob) {
@@ -201,7 +206,7 @@ async function sendAudioToServer(blob) {
   fd.append('session', sessionId);
   if (autoPhone) fd.append("frontend_phone", autoPhone);
 
-  const res = await fetch("http:
+  const res = await fetch(`${API_BASE}/api/voice`, {
     method: 'POST',
     body: fd
   });
