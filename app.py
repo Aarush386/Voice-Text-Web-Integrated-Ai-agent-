@@ -4,9 +4,23 @@ from werkzeug.utils import secure_filename
 import tempfile
 import os
 from flask_cors import CORS
+from twilio.twiml.messaging_response import MessagingResponse
+from flask import request
 
 app = Flask(__name__, static_folder="media")
 CORS(app)
+
+
+@app.route("/twilio-webhook", methods=["POST"])
+def twilio_webhook():
+    from_number = request.form.get("From", "")
+    phone = from_number.replace("whatsapp:", "")
+
+    frontend_url = f"https://voiceandtextaiagent.vercel.app/?from={phone}"
+
+    resp = MessagingResponse()
+    resp.message(f"Hey! Tap here to chat with your AI agent:\n{frontend_url}")
+    return str(resp)
 
 @app.route("/api/text", methods=["POST"])
 def api_text():
