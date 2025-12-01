@@ -28,7 +28,10 @@ except:
     LLM_AVAILABLE = False
 
 init_db()
-LLM_PER_MIN = int(os.getenv("LLM_PER_MINUTE", "15"))
+try:
+    LLM_PER_MIN = int(os.getenv("LLM_PER_MINUTE", "15"))
+except:
+    LLM_PER_MIN = 15
 LLM_CALLS = []
 
 def can_call_llm() -> bool:
