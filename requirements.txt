@@ -7,3 +7,4 @@ python-dotenv
 Werkzeug
 google-generativeai
 qrcode
+twilio
