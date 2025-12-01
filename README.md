@@ -1,10 +1,10 @@
 Voice + Text AI Booking Agent
 
-A small system that lets users book calls or AI agents through text or voice. The assistant extracts booking details, confirms them, sends WhatsApp updates, and can generate a UPI QR for payments. It handles interruptions, slang, and small talk without losing the booking flow.
+A system that lets users book calls or AI agents through text or voice. The assistant extracts booking details, confirms them, sends WhatsApp updates, and can generate a UPI QR for payments. It handles interruptions, slang, and small talk without losing the booking flow. It also sends confirmation messages through whatsapp api (twilio)
 
 Features
 
-Text and voice input (voice → text via local Whisper)
+Text and voice input (voice → text via Speech Recognition)
 
 Auto-detected phone number from Twilio with country code confirmation
 
