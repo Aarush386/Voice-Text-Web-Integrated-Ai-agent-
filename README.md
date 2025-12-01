@@ -16,6 +16,8 @@ WhatsApp confirmations, catalogs, locations, and QR payment links
 
 Natural tone adjustments and safe handling of unrelated questions
 
+Automatically fetches phone number through URL when user comes to webpage through twilio sandbox
+
 Architecture
 
 Frontend: Simple HTML/JS interface for typing or recording audio; phone passed from Twilio.
