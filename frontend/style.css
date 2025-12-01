@@ -194,7 +194,9 @@ header.header {
     padding: 18px;
     height: 500px;
     overflow: auto;
-    border: 1px solid var(--color-border)
+    border: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
 }
 
 .message {
@@ -207,7 +209,9 @@ header.header {
     padding: 12px 16px;
     border-radius: 14px;
     max-width: 70%;
-    line-height: 1.4
+    line-height: 1.4;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .message.user {
@@ -229,7 +233,8 @@ header.header {
     height: 34px;
     border-radius: 9999px;
     background: linear-gradient(135deg, var(--color-secondary), var(--color-accent));
-    margin-right: 10px
+    margin-right: 10px;
+    flex-shrink: 0;
 }
 
 .message.agent .bubble {
@@ -303,7 +308,9 @@ header.header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 18px
+    margin-top: 18px;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .restart {
@@ -319,7 +326,8 @@ header.header {
     color: var(--color-text-muted);
     display: flex;
     align-items: center;
-    gap: 8px
+    gap: 8px;
+    font-size: 13px;
 }
 
 .sidebar {
@@ -359,7 +367,8 @@ header.header {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04)
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+    flex-shrink: 0;
 }
 
 .capability span {
@@ -416,22 +425,52 @@ footer .links {
     display: flex;
     gap: 18px;
     justify-content: center;
-    margin-top: 12px
+    margin-top: 12px;
+    flex-wrap: wrap;
 }
 
-@media (max-width: 900px) {
-    .container {
-        grid-template-columns: 1fr;
-        padding: 16px
-    }
+.sidebar-logo-img {
+    width: 250px;
+    height: 200px;
+    border-radius: 10px;
+}
 
-    .voice-card {
-        padding: 24px
-    }
+.sidebar-logo {
+    width: 280px;
+    height: 200px;
+    margin-top: 25px;
+    margin-right: 10px;
+    margin-left: 10px;
+}
 
-    .sidebar {
-        min-height: auto
-    }
+.sidebar hr {
+    border: 1px solid var(--color-border);
+}
+
+.msg-user {
+    background: #007AFF;
+    color: white;
+    padding: 8px 12px;
+    margin: 6px;
+    border-radius: 10px;
+    align-self: flex-end;
+    max-width: 80%;
+}
+
+.msg-assistant {
+    background: #e5e5ea;
+    color: black;
+    padding: 8px 12px;
+    margin: 6px;
+    border-radius: 10px;
+    align-self: flex-start;
+    max-width: 80%;
+}
+
+#transcript {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
 }
 
 .mic-state-idle .mic-button {
@@ -479,47 +518,200 @@ footer .links {
     display: block
 }
 
-.sidebar-logo-img {
-    width: 250px;
-    height: 200px;
-    border-radius: 10px;
+/* Mobile Responsive - Below 600px */
+@media (max-width: 600px) {
+    .container {
+        grid-template-columns: 1fr;
+        padding: 12px;
+        margin: 16px auto;
+    }
+
+    header.header {
+        height: auto;
+        padding: 12px 8px;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .brand {
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+    }
+
+    .brand-title h1 {
+        font-size: 16px;
+    }
+
+    .brand-title p {
+        font-size: 12px;
+    }
+
+    #logo-img {
+        width: 50px;
+        height: 50px;
+    }
+
+    .voice-card {
+        padding: 20px 16px;
+        border-radius: 12px;
+    }
+
+    .mic-button {
+        width: 100px;
+        height: 100px;
+    }
+
+    .mic-icon {
+        font-size: 36px;
+    }
+
+    .mic-label {
+        font-size: 14px;
+    }
+
+    .transcript {
+        height: 400px;
+        padding: 14px;
+        margin-top: 20px;
+    }
+
+    .message .bubble {
+        max-width: 85%;
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+
+    .message.agent .avatar {
+        width: 30px;
+        height: 30px;
+        margin-right: 8px;
+    }
+
+    .text-input-container {
+        flex-direction: row;
+        gap: 6px;
+        margin-top: 12px;
+    }
+
+    .text-input {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+
+    .send-button {
+        padding: 10px 16px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+
+    .actions {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .privacy {
+        font-size: 11px;
+    }
+
+    .privacy span {
+        font-size: 11px !important;
+    }
+
+    .sidebar {
+        height: auto;
+        min-height: auto;
+        padding: 20px;
+        margin-top: 20px;
+    }
+
+    .sidebar h3 {
+        font-size: 16px;
+    }
+
+    .capability {
+        padding: 8px;
+        margin-bottom: 10px;
+    }
+
+    .capability .icon {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+
+    .capability span {
+        font-size: 14px;
+    }
+
+    .quick-actions-label {
+        font-size: 14px;
+        margin-bottom: 12px;
+    }
+
+    .chip {
+        padding: 7px 10px;
+        font-size: 13px;
+    }
+
+    .sidebar-logo {
+        width: 100%;
+        height: auto;
+        margin: 20px 0 0 0;
+        display: flex;
+        justify-content: center;
+    }
+
+    .sidebar-logo-img {
+        width: 180px;
+        height: auto;
+        max-height: 150px;
+        object-fit: contain;
+    }
+
+    footer {
+        padding: 24px 16px;
+        margin-top: 32px;
+    }
+
+    footer .links {
+        flex-direction: column;
+        gap: 10px;
+        font-size: 14px;
+    }
+
+    footer .links a,
+    footer .links p {
+        margin: 0 !important;
+        font-size: 14px;
+    }
 }
 
-.sidebar-logo {
-    width: 280px;
-    height: 200px;
-    margin-top: 25px;
-    margin-right: 10px;
-    margin-left: 10px;
-}
+/* Tablet - Between 600px and 900px */
+@media (min-width: 601px) and (max-width: 900px) {
+    .container {
+        grid-template-columns: 1fr;
+        padding: 16px;
+    }
 
-.sidebar hr {
-    border: 1px solid var(--color-border);
-}
+    .voice-card {
+        padding: 28px;
+        max-width: 100%;
+    }
 
+    .transcript {
+        height: 450px;
+    }
 
-.msg-user {
-    background: #007AFF;
-    color: white;
-    padding: 8px 12px;
-    margin: 6px;
-    border-radius: 10px;
-    align-self: flex-end;
-    max-width: 80%;
-}
+    .sidebar {
+        min-height: auto;
+        height: auto;
+    }
 
-.msg-assistant {
-    background: #e5e5ea;
-    color: black;
-    padding: 8px 12px;
-    margin: 6px;
-    border-radius: 10px;
-    align-self: flex-start;
-    max-width: 80%;
-}
-
-#transcript {
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
+    .sidebar-logo-img {
+        width: 200px;
+        height: auto;
+    }
 }
