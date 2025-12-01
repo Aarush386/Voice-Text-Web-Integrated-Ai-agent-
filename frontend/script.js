@@ -1,4 +1,4 @@
-﻿const API_BASE = "web-production-b03a.up.railway.app";
+﻿const API_BASE = "https://web-production-b03a.up.railway.app";
 
 const micButton = document.getElementById('micButton');
 const micArea = document.getElementById('micArea');
