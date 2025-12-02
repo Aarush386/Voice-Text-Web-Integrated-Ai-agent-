@@ -1,7 +1,5 @@
-﻿// ================== CONFIG ==================
-const API_BASE = "https://voice-text-web-integrated-ai-agent-production.up.railway.app";
+﻿const API_BASE = "https://voice-text-web-integrated-ai-agent-production.up.railway.app";
 
-// ================== DOM ELEMENTS ==================
 const micButton = document.getElementById('micButton');
 const micArea = document.getElementById('micArea');
 const micLabel = document.getElementById('micLabel');
@@ -11,8 +9,6 @@ const restartBtn = document.getElementById('restartBtn');
 const toast = document.getElementById('toast');
 const textInput = document.getElementById('textInput');
 const sendButton = document.getElementById('sendButton');
-
-// ================== SESSION ==================
 function getOrCreateSession() {
   let sid = localStorage.getItem("sessionId");
   if (!sid) {
@@ -24,16 +20,14 @@ function getOrCreateSession() {
 
 let sessionId = getOrCreateSession();
 
-// ================== PHONE AUTODETECT ==================
+
 const urlParams = new URLSearchParams(window.location.search);
 let autoPhone = urlParams.get("phone") || null;
 
-// Add + prefix always, if present
 if (autoPhone && !autoPhone.startsWith("+")) {
   autoPhone = "+" + autoPhone.replace(/[^\d]/g, "");
 }
 
-// ================== CHAT HISTORY ==================
 function loadChatHistory() {
   const saved = localStorage.getItem("chatHistory");
   if (!saved) return;
@@ -47,7 +41,6 @@ function saveMessage(text, who) {
   localStorage.setItem("chatHistory", JSON.stringify(existing));
 }
 
-// ================== UI HELPERS ==================
 function showToast(msg, timeout = 3000) {
   toast.textContent = msg;
   toast.classList.add('show');
@@ -58,16 +51,16 @@ function addMessage(text, who = 'agent', ts = null, loadingHistory = false) {
   const el = document.createElement('div');
   el.className = 'message ' + (who === 'user' ? 'user' : 'agent');
 
-  const inner = document.createElement('div');
-  inner.className = 'bubble';
-  inner.textContent = text;
-  el.appendChild(inner);
-
   if (who === 'agent') {
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
     el.appendChild(avatar);
   }
+
+  const inner = document.createElement('div');
+  inner.className = 'bubble';
+  inner.textContent = text;
+  el.appendChild(inner);
 
   const timeEl = document.createElement('div');
   timeEl.className = 'timestamp';
@@ -80,7 +73,6 @@ function addMessage(text, who = 'agent', ts = null, loadingHistory = false) {
   if (!loadingHistory) saveMessage(text, who);
 }
 
-// ================== MEDIA RENDER ==================
 function addMedia(url, type = "image") {
   const el = document.createElement('div');
   el.className = "message agent";
@@ -107,7 +99,6 @@ function addMedia(url, type = "image") {
   transcript.scrollTop = transcript.scrollHeight;
 }
 
-// ================== BACKEND CONNECT ==================
 async function sendToBackend(msg) {
   try {
     const payload = {
@@ -129,7 +120,6 @@ async function sendToBackend(msg) {
 
     const data = await res.json();
 
-    // === FIXED: reply_text instead of reply ===
     if (data.reply_text) {
       addMessage(data.reply_text, "agent");
 
@@ -143,7 +133,6 @@ async function sendToBackend(msg) {
       }
     }
 
-    // === MEDIA: Handle structured ===
     const s = data.structured || {};
     if (s.qr_url) addMedia(s.qr_url);
     if (s.catalog_url) addMedia(s.catalog_url);
@@ -154,7 +143,6 @@ async function sendToBackend(msg) {
   }
 }
 
-// ================== SEND TEXT ==================
 async function handleTextMessage() {
   const message = textInput.value.trim();
   if (!message) return;
@@ -169,7 +157,6 @@ textInput.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') handleTextMessage();
 });
 
-// ================== QUICK CHIPS ==================
 chips.addEventListener('click', async (e) => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
@@ -178,7 +165,7 @@ chips.addEventListener('click', async (e) => {
   await sendToBackend(value);
 });
 
-// ================== RESTART ==================
+
 restartBtn.addEventListener('click', () => {
   transcript.innerHTML = '';
   localStorage.removeItem("chatHistory");
@@ -192,7 +179,6 @@ restartBtn.addEventListener('click', () => {
   );
 });
 
-// ================== VOICE ==================
 let mediaRecorder = null;
 let audioChunks = [];
 let isListening = false;
@@ -239,7 +225,6 @@ micButton.addEventListener('pointerup', () => {
   isListening = false;
 });
 
-// ================== SEND VOICE ==================
 async function sendAudioToServer(blob) {
   const fd = new FormData();
   fd.append('audio', blob, 'speech.webm');
@@ -261,7 +246,6 @@ async function sendAudioToServer(blob) {
   }
 }
 
-// ================== INIT ==================
 loadChatHistory();
 
 if (transcript.children.length === 0) {

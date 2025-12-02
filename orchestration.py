@@ -367,7 +367,7 @@ def run_agent(
             "reply_text": out,
             "transcript": transcript,
             "reply_audio_url": None,
-            "structured": {},
+            "structured": {"catalog_url": url},
         }
 
     # Location (UI only, URL/text)
@@ -390,7 +390,7 @@ def run_agent(
             "reply_text": out,
             "transcript": transcript,
             "reply_audio_url": None,
-            "structured": {},
+            "structured": {"location_url": url},
         }
 
     # ---- Stage: IDLE ----
