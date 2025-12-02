@@ -23,7 +23,7 @@ def twilio_webhook():
     from_number = request.form.get("From", "")
     phone = from_number.replace("whatsapp:", "")
 
-    frontend_url = f"https://voiceandtextaiagent.vercel.app/?from={phone}"
+    frontend_url = f"https://voiceandtextaiagent.vercel.app/?phone={phone}"
 
     resp = MessagingResponse()
     resp.message(f"Hey! Tap here to chat with your AI agent:\n{frontend_url}")
