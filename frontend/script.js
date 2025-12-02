@@ -1,5 +1,7 @@
-﻿const API_BASE = "https://voice-text-web-integrated-ai-agent-production.up.railway.app";
+﻿// ================== CONFIG ==================
+const API_BASE = "https://voice-text-web-integrated-ai-agent-production.up.railway.app";
 
+// ================== DOM ELEMENTS ==================
 const micButton = document.getElementById('micButton');
 const micArea = document.getElementById('micArea');
 const micLabel = document.getElementById('micLabel');
@@ -10,6 +12,7 @@ const toast = document.getElementById('toast');
 const textInput = document.getElementById('textInput');
 const sendButton = document.getElementById('sendButton');
 
+// ================== SESSION ==================
 function getOrCreateSession() {
   let sid = localStorage.getItem("sessionId");
   if (!sid) {
@@ -21,6 +24,16 @@ function getOrCreateSession() {
 
 let sessionId = getOrCreateSession();
 
+// ================== PHONE AUTODETECT ==================
+const urlParams = new URLSearchParams(window.location.search);
+let autoPhone = urlParams.get("phone") || null;
+
+// Add + prefix always, if present
+if (autoPhone && !autoPhone.startsWith("+")) {
+  autoPhone = "+" + autoPhone.replace(/[^\d]/g, "");
+}
+
+// ================== CHAT HISTORY ==================
 function loadChatHistory() {
   const saved = localStorage.getItem("chatHistory");
   if (!saved) return;
@@ -34,6 +47,7 @@ function saveMessage(text, who) {
   localStorage.setItem("chatHistory", JSON.stringify(existing));
 }
 
+// ================== UI HELPERS ==================
 function showToast(msg, timeout = 3000) {
   toast.textContent = msg;
   toast.classList.add('show');
@@ -47,14 +61,13 @@ function addMessage(text, who = 'agent', ts = null, loadingHistory = false) {
   const inner = document.createElement('div');
   inner.className = 'bubble';
   inner.textContent = text;
+  el.appendChild(inner);
 
   if (who === 'agent') {
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
     el.appendChild(avatar);
   }
-
-  el.appendChild(inner);
 
   const timeEl = document.createElement('div');
   timeEl.className = 'timestamp';
@@ -67,9 +80,34 @@ function addMessage(text, who = 'agent', ts = null, loadingHistory = false) {
   if (!loadingHistory) saveMessage(text, who);
 }
 
-const urlParams = new URLSearchParams(window.location.search);
-const autoPhone = urlParams.get("phone") || null;
+// ================== MEDIA RENDER ==================
+function addMedia(url, type = "image") {
+  const el = document.createElement('div');
+  el.className = "message agent";
 
+  if (type === "image") {
+    const img = document.createElement("img");
+    img.src = url;
+    img.className = "media-image";
+    el.appendChild(img);
+  } else {
+    const a = document.createElement("a");
+    a.href = url;
+    a.textContent = "Open link";
+    a.target = "_blank";
+    el.appendChild(a);
+  }
+
+  const timeEl = document.createElement('div');
+  timeEl.className = "timestamp";
+  timeEl.textContent = new Date().toLocaleTimeString();
+  el.appendChild(timeEl);
+
+  transcript.appendChild(el);
+  transcript.scrollTop = transcript.scrollHeight;
+}
+
+// ================== BACKEND CONNECT ==================
 async function sendToBackend(msg) {
   try {
     const payload = {
@@ -91,6 +129,7 @@ async function sendToBackend(msg) {
 
     const data = await res.json();
 
+    // === FIXED: reply_text instead of reply ===
     if (data.reply_text) {
       addMessage(data.reply_text, "agent");
 
@@ -104,11 +143,18 @@ async function sendToBackend(msg) {
       }
     }
 
+    // === MEDIA: Handle structured ===
+    const s = data.structured || {};
+    if (s.qr_url) addMedia(s.qr_url);
+    if (s.catalog_url) addMedia(s.catalog_url);
+    if (s.location_url) addMedia(s.location_url, "link");
+
   } catch (err) {
     showToast("Server error");
   }
 }
 
+// ================== SEND TEXT ==================
 async function handleTextMessage() {
   const message = textInput.value.trim();
   if (!message) return;
@@ -123,6 +169,7 @@ textInput.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') handleTextMessage();
 });
 
+// ================== QUICK CHIPS ==================
 chips.addEventListener('click', async (e) => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
@@ -131,6 +178,7 @@ chips.addEventListener('click', async (e) => {
   await sendToBackend(value);
 });
 
+// ================== RESTART ==================
 restartBtn.addEventListener('click', () => {
   transcript.innerHTML = '';
   localStorage.removeItem("chatHistory");
@@ -139,11 +187,12 @@ restartBtn.addEventListener('click', () => {
   localStorage.setItem("sessionId", sessionId);
 
   addMessage(
-    'Hello! Welcome to Aarush Ai solutions , we specialize in building userfull Ai Agents for businesses that can generate leads, book services, and help with customer support. I am an AI voice assistant. Want your own Custom AI Agent? You can book a call with me to discuss your agent and custom features — or directly book an AI agent for your business.',
+    'Hello! Welcome to Aarush Ai solutions...',
     'agent'
   );
 });
 
+// ================== VOICE ==================
 let mediaRecorder = null;
 let audioChunks = [];
 let isListening = false;
@@ -164,7 +213,6 @@ micButton.addEventListener('pointerdown', async (e) => {
     mediaRecorder.onstop = async () => {
       const blob = new Blob(audioChunks, { type: 'audio/webm' });
       addMessage('... (voice message)', 'user');
-      setMicState('processing');
 
       try {
         await sendAudioToServer(blob);
@@ -172,13 +220,13 @@ micButton.addEventListener('pointerdown', async (e) => {
         showToast("Voice processing error");
       }
 
-      setMicState('idle');
       stream.getTracks().forEach(t => t.stop());
     };
 
     mediaRecorder.start();
     isListening = true;
-    setMicState('listening');
+    micArea.className = "mic-state-listening";
+    micLabel.textContent = "Listening...";
 
   } catch {
     showToast("Microphone blocked");
@@ -191,15 +239,7 @@ micButton.addEventListener('pointerup', () => {
   isListening = false;
 });
 
-function setMicState(s) {
-  micArea.classList.remove('mic-state-idle', 'mic-state-listening', 'mic-state-processing');
-  micArea.classList.add(`mic-state-${s}`);
-  micLabel.textContent =
-    s === 'listening' ? 'Listening...' :
-      s === 'processing' ? 'Processing...' :
-        'Hold to Speak';
-}
-
+// ================== SEND VOICE ==================
 async function sendAudioToServer(blob) {
   const fd = new FormData();
   fd.append('audio', blob, 'speech.webm');
@@ -214,15 +254,19 @@ async function sendAudioToServer(blob) {
   const j = await res.json();
 
   if (j.transcript) addMessage(j.transcript, 'user');
-  if (j.reply_text) addMessage(j.reply_text, 'agent');
-  if (j.reply_audio_url) new Audio(j.reply_audio_url).play();
+
+  if (j.reply_text) {
+    addMessage(j.reply_text, 'agent');
+    if (j.reply_audio_url) new Audio(j.reply_audio_url).play();
+  }
 }
 
+// ================== INIT ==================
 loadChatHistory();
 
 if (transcript.children.length === 0) {
   addMessage(
-    'Hello! Welcome to Aarush Ai solutions , we specialize in building userfull Ai Agents for businesses that can generate leads, book services, and help with customer support. I am an AI voice assistant. Want your own Custom AI Agent? You can book a call with me to discuss your agent and custom features — or directly book an AI agent for your business.',
+    'Hello! Welcome to Aarush Ai solutions...',
     'agent'
   );
 }
