@@ -21,7 +21,7 @@ def send_location(session: str, phone: str = None) -> Dict[str, Any]:
         text = f"Location: {ADDRESS}"
         return {
             "ok": True,
-            "public_url": MAP_LINK,
+            "location_url": MAP_LINK,
             "text": text,
             "summary": "Location ready",
         }

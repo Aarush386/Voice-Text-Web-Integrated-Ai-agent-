@@ -34,7 +34,7 @@ def send_price_catalog(session: str, phone: str = None) -> Dict[str, Any]:
 
         return {
             "ok": True,
-            "public_url": public_url,
+            "catalog_url": public_url,
             "summary": "Catalog ready",
         }
     except Exception as e:

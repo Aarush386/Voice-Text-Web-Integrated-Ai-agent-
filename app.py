@@ -6,6 +6,7 @@ import os
 from flask_cors import CORS
 from twilio.twiml.messaging_response import MessagingResponse
 from flask import request
+from orchestration import run_agent
 
 app = Flask(__name__)
 CORS(app)
@@ -31,22 +32,18 @@ def twilio_webhook():
 
 @app.route("/api/text", methods=["POST"])
 def api_text():
-    data = request.get_json() or {}
-    session = data.get("session_id")
-    messages = data.get("messages", [])
-    frontend_phone = data.get("frontend_phone", None)
-    resp = run_agent(messages, session, frontend_phone)
-    return jsonify({
-        "reply_text": resp.get("reply_text"),
-        "transcript": resp.get("transcript"),
-        "reply_audio_url": resp.get("reply_audio_url"),
-        "structured": resp.get("structured", {})
-    })
+    data = request.get_json(force=True)
+    sid = data.get("session_id") or data.get("sid")
+    msgs = data.get("messages") or []
+    frontend_phone = data.get("frontend_phone")
+    resp = run_agent(msgs, sid, frontend_phone=frontend_phone)
+    return jsonify(resp)
+
 
 @app.route("/api/voice", methods=["POST"])
 def api_voice():
     session = request.form.get("session")
-    frontend_phone = request.form.get("frontend_phone", None)
+    frontend_phone = request.form.get("frontend_phone")
 
     if "audio" not in request.files:
         return jsonify({"error": "no audio"}), 400
@@ -62,9 +59,9 @@ def api_voice():
             tmp = audio_path
 
         resp = run_agent(
-            [{"role": "user", "parts": [{"text": "[voice message]"}]}],
+            [],
             session,
-            frontend_phone,
+            frontend_phone=frontend_phone,
             audio_path=audio_path
         )
 
