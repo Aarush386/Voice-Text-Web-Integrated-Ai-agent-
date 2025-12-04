@@ -8,3 +8,4 @@ Werkzeug
 google-generativeai
 qrcode
 twilio
+dateparser

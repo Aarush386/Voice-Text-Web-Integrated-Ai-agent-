@@ -31,6 +31,10 @@ def send_whatsapp_text(to: str, body: str) -> Dict[str, Any]:
 
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
         to_norm = _normalize(to)
+        num = to_norm.replace("whatsapp:", "")
+        if not num.startswith("+"):
+            num = f"+{num}"
+        to_norm = f"whatsapp:{num}"
         msg = client.messages.create(body=body, from_=TWILIO_WHATSAPP_FROM, to=to_norm)
         return {"ok": True, "summary": "sent", "sid": getattr(msg, "sid", None)}
     except Exception as e:

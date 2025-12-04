@@ -22,3 +22,18 @@ def normalize_phone_full(raw: str) -> Dict[str, str]:
     if digits:
         out["phone"] = digits
     return out
+
+def combine_full_number(slots: dict) -> str:
+    """
+    Returns Twilio-ready WhatsApp number:
+    whatsapp:+91XXXXXXXXXX
+    """
+    cc = slots.get("country_code", "")
+    ph = slots.get("phone", "")
+
+    # force + prefix
+    if not cc.startswith("+"):
+        cc = "+" + cc
+
+    full = f"whatsapp:{cc}{ph}"
+    return full

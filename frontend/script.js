@@ -12,23 +12,28 @@ const toast = document.getElementById('toast');
 const textInput = document.getElementById('textInput');
 const sendButton = document.getElementById('sendButton');
 
-// ============ SESSION ============
+// ============ SESSION (sessionStorage so tab close wipes it) ============
 function getOrCreateSession() {
-  let sid = localStorage.getItem("sessionId");
+  let sid = sessionStorage.getItem("sessionId");
   if (!sid) {
     sid = Math.random().toString(36).slice(2, 9);
-    localStorage.setItem("sessionId", sid);
+    sessionStorage.setItem("sessionId", sid);
   }
   return sid;
 }
 let sessionId = getOrCreateSession();
+
+// wipe session on tab close (extra safety)
+window.addEventListener("beforeunload", () => {
+  sessionStorage.removeItem("sessionId");
+  sessionStorage.removeItem("chatHistory");
+});
 
 // ============ PHONE AUTOFILL ============
 const urlParams = new URLSearchParams(window.location.search);
 let autoPhone = urlParams.get("phone") || null;
 
 if (autoPhone) {
-  // ensure + prefix and digits only after +
   autoPhone = autoPhone.trim();
   autoPhone = autoPhone.replace(/^whatsapp:/, "");
   const digits = autoPhone.replace(/[^\d]/g, "");
@@ -41,16 +46,16 @@ if (autoPhone) {
 
 // ============ CHAT HISTORY ============
 function loadChatHistory() {
-  const saved = localStorage.getItem("chatHistory");
+  const saved = sessionStorage.getItem("chatHistory");
   if (!saved) return;
   const items = JSON.parse(saved);
   items.forEach(msg => addMessage(msg.text, msg.who, msg.time, true));
 }
 
 function saveMessage(text, who) {
-  const existing = JSON.parse(localStorage.getItem("chatHistory") || "[]");
+  const existing = JSON.parse(sessionStorage.getItem("chatHistory") || "[]");
   existing.push({ text, who, time: new Date().toLocaleTimeString() });
-  localStorage.setItem("chatHistory", JSON.stringify(existing));
+  sessionStorage.setItem("chatHistory", JSON.stringify(existing));
 }
 
 // ============ UI HELPERS ============
@@ -64,15 +69,21 @@ function addMessage(text, who = 'agent', ts = null, loadingHistory = false) {
   const wrapper = document.createElement('div');
   wrapper.className = 'message ' + (who === 'user' ? 'user' : 'agent');
 
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-  bubble.textContent = text;
-  wrapper.appendChild(bubble);
-
   if (who === 'agent') {
+    // avatar first so it appears on the LEFT
     const avatar = document.createElement('div');
     avatar.className = 'avatar';
     wrapper.appendChild(avatar);
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    wrapper.appendChild(bubble);
+  } else {
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    wrapper.appendChild(bubble);
   }
 
   const timeEl = document.createElement('div');
@@ -90,6 +101,11 @@ function addMessage(text, who = 'agent', ts = null, loadingHistory = false) {
 function addMedia(url, type = "image") {
   const wrapper = document.createElement('div');
   wrapper.className = 'message agent';
+
+  // avatar on LEFT
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  wrapper.appendChild(avatar);
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
@@ -109,10 +125,6 @@ function addMedia(url, type = "image") {
 
   wrapper.appendChild(bubble);
 
-  const avatar = document.createElement('div');
-  avatar.className = 'avatar';
-  wrapper.appendChild(avatar);
-
   const timeEl = document.createElement('div');
   timeEl.className = 'timestamp';
   timeEl.textContent = new Date().toLocaleTimeString();
@@ -121,6 +133,20 @@ function addMedia(url, type = "image") {
   transcript.appendChild(wrapper);
   transcript.scrollTop = transcript.scrollHeight;
 }
+
+// ============ SPEECH SYNTHESIS (slower & stable) ============
+let selectedVoice = null;
+
+function initVoices() {
+  const voices = speechSynthesis.getVoices();
+  if (!voices || !voices.length) return;
+  selectedVoice =
+    voices.find(v => v.lang && v.lang.toLowerCase().startsWith("en-in")) ||
+    voices.find(v => v.lang && v.lang.toLowerCase().startsWith("en")) ||
+    voices[0];
+}
+speechSynthesis.onvoiceschanged = initVoices;
+initVoices();
 
 // ============ BACKEND ============
 async function sendToBackend(msg) {
@@ -152,9 +178,10 @@ async function sendToBackend(msg) {
       if (data.reply_audio_url) {
         const audio = new Audio(data.reply_audio_url);
         audio.play().catch(() => { });
-      } else {
+      } else if ('speechSynthesis' in window) {
         const utter = new SpeechSynthesisUtterance(data.reply_text);
-        utter.rate = 1.3;
+        utter.rate = 0.9; // slower, more natural
+        if (selectedVoice) utter.voice = selectedVoice;
         speechSynthesis.cancel();
         speechSynthesis.speak(utter);
       }
@@ -197,10 +224,10 @@ chips.addEventListener('click', async (e) => {
 // ============ RESTART ============
 restartBtn.addEventListener('click', () => {
   transcript.innerHTML = '';
-  localStorage.removeItem("chatHistory");
+  sessionStorage.removeItem("chatHistory");
+  sessionStorage.removeItem("sessionId");
 
-  sessionId = Math.random().toString(36).slice(2, 9);
-  localStorage.setItem("sessionId", sessionId);
+  sessionId = getOrCreateSession();
 
   addMessage(
     "Hello! Welcome to Aarush Ai solutions, we specialize in building useful AI agents for businesses that can generate leads, book services, and help with customer support. I am an AI voice assistant. Want your own Custom AI Agent? You can book a call with me to discuss your agent and custom features — or directly book an AI agent for your business.",
@@ -208,84 +235,76 @@ restartBtn.addEventListener('click', () => {
   );
 });
 
-// ============ VOICE ============
-let mediaRecorder = null;
-let audioChunks = [];
+// ============ VOICE INPUT (Web Speech API, no backend STT) ============
+let recognition = null;
 let isListening = false;
 
-micButton.addEventListener('pointerdown', async (e) => {
+function initRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const rec = new SR();
+  rec.lang = "en-IN"; // better for you; still understands English globally
+  rec.continuous = false;
+  rec.interimResults = false;
+  return rec;
+}
+
+micButton.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   if (isListening) return;
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    audioChunks = [];
+  if (!recognition) {
+    recognition = initRecognition();
+    if (!recognition) {
+      showToast("Voice input not supported in this browser");
+      return;
+    }
 
-    mediaRecorder.ondataavailable = ev => {
-      if (ev.data.size > 0) audioChunks.push(ev.data);
+    recognition.onstart = () => {
+      isListening = true;
+      micArea.classList.add('listening');
+      micLabel.textContent = "Listening...";
     };
 
-    mediaRecorder.onstop = async () => {
-      const blob = new Blob(audioChunks, { type: 'audio/webm' });
-      addMessage('... (voice message)', 'user');
-      try {
-        await sendAudioToServer(blob);
-      } catch (err) {
+    recognition.onend = () => {
+      isListening = false;
+      micArea.classList.remove('listening');
+      micLabel.textContent = "Hold to talk";
+    };
+
+    recognition.onerror = (ev) => {
+      isListening = false;
+      micArea.classList.remove('listening');
+      micLabel.textContent = "Hold to talk";
+      if (ev.error !== "no-speech") {
         showToast("Voice error");
       }
-      stream.getTracks().forEach(t => t.stop());
     };
 
-    mediaRecorder.start();
-    isListening = true;
-    micArea.classList.add('listening');
-    micLabel.textContent = "Listening...";
+    recognition.onresult = async (ev) => {
+      if (!ev.results || !ev.results[0] || !ev.results[0][0]) return;
+      const text = ev.results[0][0].transcript;
+      addMessage(text, 'user');
+      await sendToBackend(text);
+    };
+  }
+
+  try {
+    recognition.start();
   } catch {
-    showToast("Microphone blocked");
+    // start may throw if already started; ignore
   }
 });
 
-micButton.addEventListener('pointerup', () => {
-  if (!isListening) return;
-  mediaRecorder.stop();
-  isListening = false;
-  micArea.classList.remove('listening');
-  micLabel.textContent = "Hold to talk";
+micButton.addEventListener('pointerup', (e) => {
+  e.preventDefault();
+  if (!recognition || !isListening) return;
+  try {
+    recognition.stop();
+  } catch {
+    // ignore
+  }
 });
-
-async function sendAudioToServer(blob) {
-  const fd = new FormData();
-  fd.append('audio', blob, 'speech.webm');
-  fd.append('session', sessionId);
-  if (autoPhone) fd.append('frontend_phone', autoPhone);
-
-  const res = await fetch(`${API_BASE}/api/voice`, {
-    method: 'POST',
-    body: fd
-  });
-
-  if (!res.ok) {
-    showToast("Server error");
-    return;
-  }
-
-  const j = await res.json();
-
-  if (j.transcript) addMessage(j.transcript, 'user');
-  if (j.reply_text) {
-    addMessage(j.reply_text, 'agent');
-    if (j.reply_audio_url) {
-      const a = new Audio(j.reply_audio_url);
-      a.play().catch(() => { });
-    }
-  }
-
-  const s = j.structured || {};
-  if (s.qr_url) addMedia(s.qr_url, "image");
-  if (s.catalog_url) addMedia(s.catalog_url, "image");
-  if (s.location_url) addMedia(s.location_url, "link");
-}
 
 // ============ INIT ============
 loadChatHistory();
